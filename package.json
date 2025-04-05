@@ -1,0 +1,37 @@
+{
+  "name": "front",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@juggle/resize-observer": "^3.4.0",
+    "@nextui-org/react": "^2.6.11",
+    "clsx": "^2.1.1",
+    "core-js": "^3.41.0",
+    "crypto-js": "^4.2.0",
+    "framer-motion": "^11.5.6",
+    "lucide-react": "^0.487.0",
+    "mini-svg-data-uri": "^1.4.4",
+    "next": "^14.2.25",
+    "pdfjs-dist": "^5.1.91",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-icons": "^5.5.0",
+    "react-toastify": "^10.0.5",
+    "tailwind-merge": "^2.5.2"
+  },
+  "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}
