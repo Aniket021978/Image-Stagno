@@ -5,7 +5,10 @@ import CryptoJS from "crypto-js";
 const Decode = () => {
   const [images, setImages] = useState<{ data: string; name: string; key: string }[]>([]);
   const [decodedData, setDecodedData] = useState<
-    { text: string; image: string | null; name: string; error?: string }[]
+    {
+      width: number;
+      height: number; text: string; image: string | null; name: string; error?: string 
+}[]
   >([]);
   const [confirmation, setConfirmation] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -80,14 +83,14 @@ const Decode = () => {
       const ctx = canvas.getContext("2d");
       const img = new window.Image();
       img.src = imageData;
-
+  
       img.onload = () => {
         canvas.width = img.width;
         canvas.height = img.height;
         ctx?.drawImage(img, 0, 0);
         const imgData = ctx?.getImageData(0, 0, img.width, img.height);
         if (!imgData) return reject("Error loading image data");
-
+  
         const data = imgData.data;
         let binaryMessage = "";
         for (let i = 0; i < data.length; i += 4) {
@@ -95,52 +98,64 @@ const Decode = () => {
           binaryMessage += (data[i + 1] & 1).toString();
           binaryMessage += (data[i + 2] & 1).toString();
         }
+  
         let message = "";
         for (let i = 0; i < binaryMessage.length; i += 8) {
           const byte = binaryMessage.slice(i, i + 8);
           if (byte.length < 8) break;
           const charCode = parseInt(byte, 2);
-          if (charCode < 32 || charCode > 126) break;
+          if (charCode === 0) break; // End of message
           message += String.fromCharCode(charCode);
         }
-        const parts = message.split(DELIMITER);
-        let text = "";
-        let embeddedImage = null;
-
-        // अगर की खाली है और मैसेज मौजूद है, तो "No hidden data found" रिटर्न करें
-        if (!key && parts.length > 0 && message.length > 0) {
+  
+        if (!message) {
           resolve({ text: "No hidden data found", embeddedImage: null });
           return;
         }
-
+  
+        const parts = message.split(DELIMITER);
+        let text = "";
+        let embeddedImage = null;
+        let customWidth = 0;
+        let customHeight = 0;
+  
         if (parts.length > 0 && message.length > 0) {
           const base64ImageRegex = /^data:image\/(png|jpeg|jpg);base64,[\w+\/=]+$/;
           let hasError = false;
+  
           parts.forEach((part) => {
             const { data: decryptedPart, hasError: decryptionError } = decryptData(part, key);
             if (decryptionError) {
               hasError = true;
             } else if (base64ImageRegex.test(decryptedPart)) {
               embeddedImage = decryptedPart;
+              // Attempt to get dimensions from the image
+              const tempImg = new window.Image();
+              tempImg.src = decryptedPart;
+              tempImg.onload = () => {
+                customWidth = tempImg.width;
+                customHeight = tempImg.height;
+              };
+              tempImg.onerror = () => console.warn("Could not load image to get dimensions");
             } else if (decryptedPart) {
-              text = decryptedPart;
+              text += decryptedPart + " ";
             }
           });
-
+  
           if (!text && !embeddedImage) {
             text = hasError ? "Error: Wrong decryption key" : "No hidden data found";
             if (hasError) {
-              resolve({ text, embeddedImage: null, error: "Wrong key" });
+              resolve({ text, embeddedImage: null, error: "Wrong key", width: 0, height: 0 });
               return;
             }
           }
         } else {
           text = "No hidden data found";
         }
-
-        resolve({ text, embeddedImage });
+  
+        resolve({ text: text.trim(), embeddedImage, width: customWidth, height: customHeight });
       };
-
+  
       img.onerror = () => reject("Failed to load image.");
     });
   };
@@ -323,7 +338,10 @@ const Decode = () => {
                       <Image
                         src={data.image}
                         alt={`Hidden Image from ${data.name}`}
-                        className="rounded-md max-h-64 w-auto"
+                        className="rounded-md"
+                        width={data.width} 
+                        height={data.height} 
+                        objectFit="contain"
                         onError={() => console.log(`Failed to load image from ${data.name}: ${data.image}`)}
                       />
                     </div>

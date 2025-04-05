@@ -28,7 +28,18 @@ const encodeImageMessage = async (imageData: string, message: string) => {
       for (let i = 0; i < fullMessage.length; i++) {
         binaryMessage += fullMessage.charCodeAt(i).toString(2).padStart(8, "0");
       }
-
+      if (message.startsWith("data:image/")) {
+        const hiddenImg = new window.Image();
+        hiddenImg.src = message;
+        hiddenImg.onload = () => {
+          const dimString = `DIM:${hiddenImg.width}x${hiddenImg.height}:`;
+          binaryMessage += dimString
+            .split("")
+            .map(char => char.charCodeAt(0).toString(2).padStart(8, "0"))
+            .join("");
+        };
+        hiddenImg.onerror = () => reject("Failed to load hidden image for dimensions.");
+      }
       let messageIndex = 0;
       for (let i = 0; i < data.length && messageIndex < binaryMessage.length; i += 4) {
         if (messageIndex < binaryMessage.length) {
@@ -258,16 +269,16 @@ const Encode = () => {
       setError("⚠️ Please upload at least one file.");
       return;
     }
-
+  
     if (hiddenFiles.length > 0 && hiddenImageIndices.some(idx => idx === null)) {
       setError("⚠️ Please select an image for each hidden file.");
       return;
     }
-
+  
     const allImagesHaveKeys = files.every((_, index) => 
       encryptionKeys[index] !== null && encryptionKeys[index] !== ""
     );
-
+  
     if (!allImagesHaveKeys) {
       const missingKeyIndex = files.findIndex((_, index) => 
         encryptionKeys[index] === null || encryptionKeys[index] === ""
@@ -275,20 +286,20 @@ const Encode = () => {
       setError(`⚠️ Please assign an encryption key to Image ${missingKeyIndex + 1}.`);
       return;
     }
-
+  
     const imagesWithContent = new Set([
       ...textImageIndices.filter(index => imageTexts[index] !== null && imageTexts[index] !== ""),
       ...hiddenImageIndices.filter(idx => idx !== null),
     ]);
-
+  
     const allImagesHaveContent = files.every((_, index) => imagesWithContent.has(index));
-
+  
     if (!allImagesHaveContent) {
       const missingContentIndex = files.findIndex((_, index) => !imagesWithContent.has(index));
       setError(`⚠️ Please assign text or a hidden file to Image ${missingContentIndex + 1}.`);
       return;
     }
-
+  
     try {
       const encodedImages: EncodedImage[] = [];
       for (let i = 0; i < files.length; i++) {
@@ -301,7 +312,7 @@ const Encode = () => {
           const hiddenFileIndex = hiddenImageIndices.findIndex(idx => idx === i);
           if (hiddenFileIndex !== -1) {
             if (combinedMessage) combinedMessage += DELIMITER;
-            combinedMessage += encryptData(hiddenFiles[hiddenFileIndex], key);
+            combinedMessage += encryptData(hiddenFiles[hiddenFileIndex], key); // Hidden image as base64
           }
           if (combinedMessage) {
             const encodedImage = await encodeImageMessage(files[i], combinedMessage);
@@ -313,7 +324,7 @@ const Encode = () => {
           }
         }
       }
-
+  
       files.forEach((file, index) => {
         const encodedVersion = encodedImages.find(img => img.index === index);
         const a = document.createElement("a");
@@ -328,7 +339,7 @@ const Encode = () => {
         }
         a.click();
       });
-
+  
       setSuccess("✅ Successfully downloaded all files!");
       setTimeout(() => {
         setFiles([]);
@@ -347,7 +358,6 @@ const Encode = () => {
       setError("❌ Error processing one of the files: " + error);
     }
   };
-
   const getAvailableTextImages = () => {
     return files
       .map((file, index) => ({ file, index }))
