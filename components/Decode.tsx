@@ -466,7 +466,7 @@ const Decode = () => {
                   <Input
                     fullWidth
                     size="lg"
-                    label={`Encryption Key for File ${index + 1}`}
+                    label={`Decryption Key for File ${index + 1}`}
                     placeholder={`Enter ${KEY_LENGTH}-character key`}
                     value={file.key}
                     onChange={(e) => handleKeyChange(index, e.target.value)}

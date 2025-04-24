@@ -1,33 +1,40 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Card, Input, Textarea, Button, Image } from "@nextui-org/react";
 import CryptoJS from "crypto-js";
 
 const EncodeText = () => {
-  const [text, setText] = useState(""); // Text to hide
-  const [coverText, setCoverText] = useState(""); // Cover text
-  const [hiddenImage, setHiddenImage] = useState(null); // Hidden image
+  const [text, setText] = useState("");
+  const [coverText, setCoverText] = useState("");
+  const [hiddenImage, setHiddenImage] = useState<string | null>(null);
   const [encryptionKey, setEncryptionKey] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [keyVisibility, setKeyVisibility] = useState(false);
-  const hiddenFileInputRef = useRef(null);
+  const hiddenFileInputRef = useRef<HTMLInputElement>(null);
 
   const KEY_LENGTH = 6;
   const DELIMITER = "||";
 
-  const encryptData = (data, key) => {
+  // Ensure code runs only on client-side to avoid SSR issues on Vercel
+  const isClient = typeof window !== "undefined";
+
+  const encryptData = (data: string, key: string) => {
     if (!key) throw new Error("Encryption key is required.");
     if (key.length !== KEY_LENGTH) throw new Error(`Key must be exactly ${KEY_LENGTH} characters.`);
     return CryptoJS.AES.encrypt(data, key).toString();
   };
 
-  const handleHiddenFileChange = (e) => {
+  const handleHiddenFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setHiddenImage(reader.result);
+      if (typeof reader.result === "string") {
+        setHiddenImage(reader.result);
+      } else {
+        setError("Failed to read image as data URL.");
+      }
     };
     reader.onerror = () => setError("Failed to read image.");
     reader.readAsDataURL(file);
@@ -39,6 +46,7 @@ const EncodeText = () => {
   };
 
   const handleSubmit = async () => {
+    if (!isClient) return; // Prevent execution during SSR
     if (!text && !hiddenImage) {
       setError("⚠️ Please provide text or an image to encode.");
       return;
@@ -62,7 +70,6 @@ const EncodeText = () => {
         combinedMessage += encryptData(hiddenImage, encryptionKey);
       }
 
-      // Combine cover text with encoded data
       const finalMessage = `${coverText}${DELIMITER}${btoa(combinedMessage)}`;
       const blob = new Blob([finalMessage], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
@@ -82,10 +89,16 @@ const EncodeText = () => {
         setSuccess("");
         if (hiddenFileInputRef.current) hiddenFileInputRef.current.value = "";
       }, 2000);
-    } catch (error) {
+    } catch (error: any) {
       setError("❌ Error encoding data: " + error.message);
     }
   };
+
+  // Ensure refs are initialized on client-side
+  useEffect(() => {
+    if (!isClient) return;
+    // Any additional client-side initialization if needed
+  }, [isClient]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen relative text-neutral-200 overflow-hidden">
@@ -118,7 +131,7 @@ const EncodeText = () => {
             onChange={(e) => setText(e.target.value)}
           />
 
-<Input
+          <Input
             fullWidth
             size="lg"
             label="Encryption Key"
